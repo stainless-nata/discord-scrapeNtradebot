@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "child_process": "^1.0.2",
+    "dotenv": "^16.3.1",
+    "ethers": "^5.1.4",
+    "fs": "^0.0.1-security",
+    "python-shell": "^5.0.0",
+    "web3": "^4.1.1"
+  },
+  "name": "discord_scraper",
+  "version": "1.0.0",
+  "main": "run.js",
+  "scripts": {
+    "start": "node run.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
