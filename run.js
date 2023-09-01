@@ -1,10 +1,12 @@
 import dotenv  from "dotenv"
-import { discord_api } from './utils/api.js'
 import getPairAddress from './utils/getPairAddress.js'
-import {PythonShell} from 'python-shell'
+import getSlippage from './utils/getSlippage.js'
+import executeTrade from "./utils/executeTrade.js"
+import axios from 'axios';
 
 dotenv.config()
 const delay = (ms) => new Promise((res) => setTimeout(res, ms)); // delay time
+let lastTime;
 
 // const scrape_dextools = async (url) => {
 //     console.log(url)
@@ -27,6 +29,32 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms)); // delay time
 //     const f = await page.$('[class="ng-star-inserted"]')
 //     console.log(f)
 // }
+const get_headers = (token=None, content_type="application/json") => {
+    let headers= {"Content-Type": content_type, "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11", "Authorization": token}
+    return headers;
+}
+
+export const discord_api = async () => {
+    let content = {}
+    let options = {
+        method: "GET",
+        url: `https://discord.com/api/v9/channels/${process.env.CHANNEL_ID}/messages?limit=1`,
+        headers: get_headers(process.env.USER_TOKEN),
+      };
+  
+    let res = (await axios.request(options)).data[0];
+
+    let time = new Date(res.timestamp)
+    time = time.getTime()
+    console.log(lastTime, time)
+
+    if(lastTime < time) {
+        content = res.content
+        lastTime = time;
+    }
+    
+    return content;
+}
 
 const scrape_discord = async () => {
     let time = new Date(Date.now())
@@ -34,29 +62,25 @@ const scrape_discord = async () => {
 
     const content = await discord_api();
     if(Object.keys(content).length) {
-        console.log("Started")
-
-        lastTime = Date.now()
         const n = content.search('\n0x')
         const tokenAddress = content.substring(n+1, n+43)
+
+        console.log("Token: ", tokenAddress)
         const pairAddress = await getPairAddress(tokenAddress)
 
-        const url = `https://www.dextools.io/app/en/ether/pair-explorer/${pairAddress}`
+        if(pairAddress) {
+            const url = `https://www.dextools.io/app/en/ether/pair-explorer/${pairAddress}`
+    
+            const slippage = await getSlippage(url)
 
-        let options = {
-            mode: 'text',
-            pythonOptions: ['-u'], // get print results in real-time
-            args: [url] //An argument which can be accessed in the script using sys.argv[1]
-        };
-        PythonShell.run('scrape_dextools.py', options).then(messages => {
-            console.log(messages);
-        })
+            await executeTrade("buy", tokenAddress, process.env.AMOUNT, slippage.buy, process.env.GAS_PRICE, process.env.GAS_LIMIT)
+            return;
+        }
     }
     
     await delay(5000)
-    // scrape_discord()
+    scrape_discord()
 }
 
-let lastTime = Date.now()
-
+lastTime = Date.now()
 scrape_discord()
